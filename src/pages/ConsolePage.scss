@@ -34,6 +34,7 @@
   }
 
   .content-main {
+    display: flex;
     flex-grow: 1;
     flex-shrink: 1 !important;
     margin: 0px 16px;
@@ -64,9 +65,12 @@
           padding: 0px;
         }
       }
+      .json-textbox {
+        display: flex;
+      }
     }
     .content-right {
-      width: 300px;
+      width: 500px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
@@ -112,7 +116,8 @@
       }
     }
     .content-logs {
-      flex-grow: 1;
+      flex: 1;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -277,4 +282,16 @@
       }
     }
   }
+}
+
+.json-schema-input {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 8px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
 }
