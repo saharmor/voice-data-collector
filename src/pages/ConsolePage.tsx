@@ -21,7 +21,6 @@ import { WavRenderer } from '../utils/wav_renderer';
 
 import { X, Edit, Zap } from 'react-feather';
 import { Button } from '../components/button/Button';
-import { Toggle } from '../components/toggle/Toggle';
 
 import './ConsolePage.scss';
 
@@ -69,8 +68,6 @@ export function ConsolePage() {
    */
   const [items, setItems] = useState<ItemType[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [canPushToTalk, setCanPushToTalk] = useState(true);
-  const [isRecording, setIsRecording] = useState(false);
   const [memoryKv, setMemoryKv] = useState<{ [key: string]: any }>({});
   const [jsonSchema, setJsonSchema] = useState(`{
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -169,53 +166,6 @@ export function ConsolePage() {
   }, []);
 
   /**
-   * In push-to-talk mode, start recording
-   * .appendInputAudio() for each sample
-   */
-  const startRecording = async () => {
-    setIsRecording(true);
-    const client = clientRef.current;
-    const wavRecorder = wavRecorderRef.current;
-    const wavStreamPlayer = wavStreamPlayerRef.current;
-    const trackSampleOffset = await wavStreamPlayer.interrupt();
-    if (trackSampleOffset?.trackId) {
-      const { trackId, offset } = trackSampleOffset;
-      await client.cancelResponse(trackId, offset);
-    }
-    await wavRecorder.record((data) => client.appendInputAudio(data.mono));
-  };
-
-  /**
-   * In push-to-talk mode, stop recording
-   */
-  const stopRecording = async () => {
-    setIsRecording(false);
-    const client = clientRef.current;
-    const wavRecorder = wavRecorderRef.current;
-    await wavRecorder.pause();
-    client.createResponse();
-  };
-
-  /**
-   * Switch between Manual <> VAD mode for communication
-   */
-  const changeTurnEndType = async (value: string) => {
-    const client = clientRef.current;
-    const wavRecorder = wavRecorderRef.current;
-    if (value === 'none' && wavRecorder.getStatus() === 'recording') {
-      await wavRecorder.pause();
-    }
-    client.updateSession({
-      turn_detection: value === 'none' ? null : { type: 'server_vad' },
-    });
-    if (value === 'server_vad' && client.isConnected()) {
-      await wavRecorder.record((data) => client.appendInputAudio(data.mono));
-    }
-    setCanPushToTalk(value === 'none');
-  };
-
-  
-  /**
    * Auto-scroll the conversation logs
    */
   useEffect(() => {
@@ -308,6 +258,7 @@ export function ConsolePage() {
 
     // append user's provide schema as part of the instructions to GPT
     const instructionsWithSchema = `${instructions}\n\nUser provided scehma:\n${jsonSchema}`;
+    console.log("Instructions with schema:", instructionsWithSchema);
     client.updateSession({ instructions: instructionsWithSchema });
     // Set transcription, otherwise we don't get user transcriptions back
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
@@ -334,30 +285,31 @@ export function ConsolePage() {
         },
       },
       async ({ key, value }: { [key: string]: any }) => {
-        console.log("Called with key", key, "and value", value);
-        setMemoryKv((memoryKv) => {
-          // validate against user provided jsonSchema
+        console.log(`Called with key ${key} and value ${value}`);
+        setMemoryKv((prevMemoryKv) => {
           if (jsonSchema) {
             try {
               const schema = JSON.parse(jsonSchema);
-              const Ajv = require("ajv");
-              const ajv = new Ajv();
-              // only validate if the key is in the schema
-              if (schema[key]) {
-                // store the value in memory
-                const newKv = { ...memoryKv };   
-                newKv[key] = value;
-                return newKv;
+              const properties = schema.properties || {};
+              
+              if (properties.hasOwnProperty(key)) {
+                // Key is part of the schema, add it to the existing memoryKv
+                return {
+                  ...prevMemoryKv,
+                  [key]: value
+                };
               } else {
                 console.warn("Key not found in schema:", key);
-                return memoryKv;
+                // Key is not part of the schema, return existing memoryKv
+                return prevMemoryKv;
               }
             } catch (error) {
               console.error("Error parsing or validating JSON schema:", error);
-              return memoryKv; // Return existing state without changes if there's an error
+              return prevMemoryKv;
             }
           }
-          return memoryKv;
+          // If no jsonSchema, return existing memoryKv
+          return prevMemoryKv;
         });
         return { ok: true };
       }
@@ -499,25 +451,9 @@ export function ConsolePage() {
             </div>
           </div>
           <div className="content-actions">
-            <Toggle
-              defaultValue={false}
-              labels={['manual', 'vad']}
-              values={['none', 'server_vad']}
-              onChange={(_, value) => changeTurnEndType(value)}
-            />
-            <div className="spacer" />
-            {isConnected && canPushToTalk && (
-              <Button
-                label={isRecording ? 'release to send' : 'push to talk'}
-                buttonStyle={isRecording ? 'alert' : 'regular'}
-                disabled={!isConnected || !canPushToTalk}
-                onMouseDown={startRecording}
-                onMouseUp={stopRecording}
-              />
-            )}
             <div className="spacer" />
             <Button
-              label={isConnected ? 'disconnect' : 'connect'}
+              label={isConnected ? 'stop' : 'start'}
               iconPosition={isConnected ? 'end' : 'start'}
               icon={isConnected ? X : Zap}
               buttonStyle={isConnected ? 'regular' : 'action'}
