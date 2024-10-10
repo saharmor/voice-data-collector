@@ -74,7 +74,7 @@ export function ConsolePage() {
   const [memoryKv, setMemoryKv] = useState<{ [key: string]: any }>({});
   const [jsonSchema, setJsonSchema] = useState(`{
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "Generated schema for Root",
+    "title": "Example schema for inquiry repo",
     "type": "object",
     "properties": {
       "first_name": {
