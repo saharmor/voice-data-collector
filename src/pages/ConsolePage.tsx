@@ -99,6 +99,8 @@ export function ConsolePage() {
     ]
   }`);
 
+  const [dataCollectionComplete, setDataCollectionComplete] = useState(false);
+
 
   /**
    * When you click the API key
@@ -151,7 +153,6 @@ export function ConsolePage() {
    */
   const disconnectConversation = useCallback(async () => {
     setIsConnected(false);
-    setItems([]);
     setMemoryKv({});
 
     const client = clientRef.current;
@@ -214,7 +215,6 @@ export function ConsolePage() {
     }
     setCanPushToTalk(value === 'none');
   };
-
   
   /**
    * Auto-scroll the conversation logs
@@ -362,6 +362,24 @@ export function ConsolePage() {
           // If no jsonSchema, return existing memoryKv
           return prevMemoryKv;
         });
+        return { ok: true };
+      },
+    );
+
+    // Add the new 'finished_collecting_data' tool
+    client.addTool(
+      {
+        name: 'finished_collecting_data',
+        description: 'Call this function when all required data has been collected according to the JSON schema',
+        parameters: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      async () => {
+        console.log('Data collection complete');
+        setDataCollectionComplete(true);
         return { ok: true };
       }
     );
@@ -537,6 +555,13 @@ export function ConsolePage() {
               {JSON.stringify(memoryKv, null, 2)}
             </div>
           </div>
+          {dataCollectionComplete && (
+            <div className="content-block">
+              <div className="primary-text">
+                <p>All required data has been collected!</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
